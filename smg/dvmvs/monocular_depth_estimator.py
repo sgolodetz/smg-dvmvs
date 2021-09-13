@@ -106,7 +106,7 @@ class MonocularDepthEstimator:
     # PUBLIC STATIC METHODS
 
     @staticmethod
-    def postprocess_depth_image(depth_image: np.ndarray, *, max_depth: float = 5.0, max_depth_difference: float = 0.05,
+    def postprocess_depth_image(depth_image: np.ndarray, *, max_depth: float = 5.0, max_depth_difference: float = 0.025,
                                 median_filter_radius: int = 7, min_region_size: int = 20000,
                                 min_valid_fraction: float = 0.2) -> Optional[np.ndarray]:
         """
@@ -146,7 +146,7 @@ class MonocularDepthEstimator:
             )
 
             # Median filter the depth image to help mitigate impulsive noise.
-            # depth_image = cv2.medianBlur(depth_image, median_filter_radius)
+            depth_image = cv2.medianBlur(depth_image, median_filter_radius)
 
             return depth_image
 
