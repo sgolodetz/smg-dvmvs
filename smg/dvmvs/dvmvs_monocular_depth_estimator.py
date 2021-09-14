@@ -18,10 +18,10 @@ from dvmvs.utils import get_non_differentiable_rectangle_depth_estimation
 from dvmvs.utils import get_warp_grid_for_cost_volume_calculation
 from dvmvs.utils import visualize_predictions
 
-from smg.utility import DepthImageProcessor, ImageUtil
+from smg.utility import DepthImageProcessor, ImageUtil, MonocularDepthEstimator
 
 
-class MonocularDepthEstimator:
+class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
     """
     A wrapper around the DeepVideoMVS monocular depth estimator.
 
@@ -302,7 +302,7 @@ class MonocularDepthEstimator:
             min_region_size=20000, min_valid_fraction=0.2
         )
 
-    def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
+    def set_intrinsics(self, intrinsics: np.ndarray) -> DVMVSMonocularDepthEstimator:
         """
         Set the camera intrinsics.
 
