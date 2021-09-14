@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional
 
 from path import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from dvmvs.config import Config
 from dvmvs.dataset_loader import PreprocessImage
@@ -18,7 +18,7 @@ from dvmvs.utils import get_non_differentiable_rectangle_depth_estimation
 from dvmvs.utils import get_warp_grid_for_cost_volume_calculation
 from dvmvs.utils import visualize_predictions
 
-from smg.utility import DepthImageProcessor
+from smg.utility import DepthImageProcessor, ImageUtil
 
 
 class MonocularDepthEstimator:
@@ -32,7 +32,16 @@ class MonocularDepthEstimator:
 
     # CONSTRUCTOR
 
-    def __init__(self, dvmvs_root: str = "C:/deep-video-mvs", *, debug: bool = False):
+    def __init__(self, dvmvs_root: str = "C:/deep-video-mvs", *, border_to_fill: int = 40, debug: bool = False):
+        """
+        Construct a DeepVideoMVS-based monocular depth estimator.
+
+        :param dvmvs_root:      The root folder of the DeepVideoMVS repository.
+        :param border_to_fill:  The size of the border (in pixels) of the estimated depth image
+                                that is to be filled with zeros to help mitigate depth noise.
+        :param debug:           Whether or not to enable debugging.
+        """
+        self.__border_to_fill: int = border_to_fill
         self.__debug: bool = debug
 
         self.__device: torch.device = torch.device("cuda")
@@ -100,9 +109,9 @@ class MonocularDepthEstimator:
         self.__K: Optional[np.ndarray] = None
 
         # TODO: Add the types.
-        self.__lstm_state = None
-        self.__previous_depth = None
-        self.__previous_pose = None
+        self.__lstm_state: Optional[Tuple[torch.Tensor, torch.Tensor]] = None
+        self.__previous_depth: Optional[torch.Tensor] = None
+        self.__previous_pose: Optional[torch.Tensor] = None
 
     # PUBLIC STATIC METHODS
 
@@ -284,7 +293,7 @@ class MonocularDepthEstimator:
                     size=(1, 1, int(Config.test_image_height / 32.0), int(Config.test_image_width / 32.0))
                 ).to(self.__device)
 
-            lstm_state = self.__lstm_fusion(
+            self.__lstm_state = self.__lstm_fusion(
                 current_encoding=bottom,
                 current_state=self.__lstm_state,
                 previous_pose=self.__previous_pose,
@@ -294,7 +303,7 @@ class MonocularDepthEstimator:
             )
 
             prediction, _, _, _, _ = self.__cost_volume_decoder(
-                reference_image_torch, skip0, skip1, skip2, skip3, lstm_state[0]
+                reference_image_torch, skip0, skip1, skip2, skip3, self.__lstm_state[0]
             )
             self.__previous_depth = prediction.view(1, 1, Config.test_image_height, Config.test_image_width)
             self.__previous_pose = reference_pose_torch
@@ -316,9 +325,12 @@ class MonocularDepthEstimator:
                 )
 
             height, width = colour_image.shape[:2]
-            depth_image: np.ndarray = cv2.resize(prediction, (width, height), interpolation=cv2.INTER_NEAREST)
+            estimated_depth_image: np.ndarray = cv2.resize(prediction, (width, height), interpolation=cv2.INTER_NEAREST)
 
-            return depth_image
+            # Fill the border with zeros (depths around the image border are often quite noisy).
+            estimated_depth_image = ImageUtil.fill_border(estimated_depth_image, self.__border_to_fill, 0.0)
+
+            return estimated_depth_image
 
     def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
         """
