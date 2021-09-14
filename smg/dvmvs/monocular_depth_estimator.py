@@ -108,7 +108,6 @@ class MonocularDepthEstimator:
 
         self.__K: Optional[np.ndarray] = None
 
-        # TODO: Add the types.
         self.__lstm_state: Optional[Tuple[torch.Tensor, torch.Tensor]] = None
         self.__previous_depth: Optional[torch.Tensor] = None
         self.__previous_pose: Optional[torch.Tensor] = None
@@ -140,6 +139,8 @@ class MonocularDepthEstimator:
                                         depth before performing this test.)
         :return:                        The post-processed depth image, if possible, or None otherwise.
         """
+        # FIXME: This is essentially the same as the function in the MVDepthNet monocular depth estimator,
+        #        but with different default parameters. We should have one copy of the function somewhere.
         # Limit the depth range (more distant points can be unreliable).
         depth_image = np.where(depth_image <= max_depth, depth_image, 0.0)
 
@@ -168,6 +169,19 @@ class MonocularDepthEstimator:
 
     # noinspection PyPep8Naming
     def estimate_depth(self, colour_image: np.ndarray, tracker_w_t_c: np.ndarray) -> Optional[np.ndarray]:
+        """
+        Try to estimate a depth image corresponding to the colour image passed in.
+
+        .. note::
+            This will return None if a suitable depth image cannot be estimated for the colour image passed in.
+            For more precise details, see KeyframeBuffer.try_new_keyframe in the DeepVideoMVS code.
+
+        :param colour_image:    The colour image.
+        :param tracker_w_t_c:   The camera pose corresponding to the colour image (as a camera -> world transform).
+        :return:                The estimated depth image, if possible, or None otherwise.
+        """
+        # Note: This code is essentially borrowed from the DeepVideoMVS code (with minor tweaks to make it work here).
+        #       As such, I haven't done much additional tidying/commenting, as there's not a lot of point.
         with torch.no_grad():
             reference_pose = tracker_w_t_c.copy()
             reference_image = colour_image.copy().astype(np.float32)
@@ -200,11 +214,6 @@ class MonocularDepthEstimator:
                 std_rgb=self.__std_rgb
             )
 
-            # if reference_depths is not None:
-            #     reference_depth = cv2.imread(depth_filenames[i], -1).astype(float) / 1000.0
-            #     reference_depth = preprocessor.apply_depth(reference_depth)
-            #     reference_depths.append(reference_depth)
-
             reference_image_torch = torch.from_numpy(
                 np.transpose(reference_image, (2, 0, 1))
             ).float().to(self.__device).unsqueeze(0)
@@ -236,8 +245,6 @@ class MonocularDepthEstimator:
                 measurement_pose_torch = torch.from_numpy(measurement_pose).float().to(self.__device).unsqueeze(0)
                 measurement_images_torch.append(measurement_image_torch)
                 measurement_poses_torch.append(measurement_pose_torch)
-
-            # inference_timer.record_start_time()
 
             measurement_feature_halfs = []
             for measurement_image_torch in measurement_images_torch:
@@ -308,10 +315,9 @@ class MonocularDepthEstimator:
             self.__previous_depth = prediction.view(1, 1, Config.test_image_height, Config.test_image_width)
             self.__previous_pose = reference_pose_torch
 
-            # inference_timer.record_end_time_and_elapsed_time()
-
             prediction = prediction.cpu().numpy().squeeze()
 
+            # If debugging is enabled, visualise the reference image, measurement image and predicted depth image.
             if self.__debug:
                 # noinspection PyUnboundLocalVariable
                 visualize_predictions(
@@ -324,10 +330,11 @@ class MonocularDepthEstimator:
                     depth_multiplier_for_visualization=5000
                 )
 
+            # Make a resized version of the predicted depth image that is the same size as the original input image.
             height, width = colour_image.shape[:2]
             estimated_depth_image: np.ndarray = cv2.resize(prediction, (width, height), interpolation=cv2.INTER_NEAREST)
 
-            # Fill the border with zeros (depths around the image border are often quite noisy).
+            # Fill the border of the depth image with zeros (depths around the image border are often quite noisy).
             estimated_depth_image = ImageUtil.fill_border(estimated_depth_image, self.__border_to_fill, 0.0)
 
             return estimated_depth_image
