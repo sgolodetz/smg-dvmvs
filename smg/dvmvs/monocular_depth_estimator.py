@@ -31,7 +31,9 @@ class MonocularDepthEstimator:
 
     # CONSTRUCTOR
 
-    def __init__(self, dvmvs_root: str = "C:/deep-video-mvs"):
+    def __init__(self, dvmvs_root: str = "C:/deep-video-mvs", *, debug: bool = False):
+        self.__debug: bool = debug
+
         self.__device: torch.device = torch.device("cuda")
 
         self.__feature_extractor: FeatureExtractor = FeatureExtractor()
@@ -303,17 +305,17 @@ class MonocularDepthEstimator:
 
             prediction = prediction.cpu().numpy().squeeze()
 
-            # if Config.test_visualize:
-            #     # noinspection PyUnboundLocalVariable
-            #     visualize_predictions(
-            #         numpy_reference_image=reference_image,
-            #         numpy_measurement_image=measurement_image,
-            #         numpy_predicted_depth=prediction,
-            #         normalization_mean=self.__mean_rgb,
-            #         normalization_std=self.__std_rgb,
-            #         normalization_scale=self.__scale_rgb,
-            #         depth_multiplier_for_visualization=5000
-            #     )
+            if self.__debug:
+                # noinspection PyUnboundLocalVariable
+                visualize_predictions(
+                    numpy_reference_image=reference_image,
+                    numpy_measurement_image=measurement_image,
+                    numpy_predicted_depth=prediction,
+                    normalization_mean=self.__mean_rgb,
+                    normalization_std=self.__std_rgb,
+                    normalization_scale=self.__scale_rgb,
+                    depth_multiplier_for_visualization=5000
+                )
 
             reference_image = reference_image * np.array(self.__std_rgb) + np.array(self.__mean_rgb)
             reference_image = (reference_image * self.__scale_rgb).astype(np.uint8)
