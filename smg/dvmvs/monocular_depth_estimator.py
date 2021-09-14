@@ -4,9 +4,10 @@ import cv2
 import numpy as np
 import os
 import torch
+import torch.nn.functional
 
 from path import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from dvmvs.config import Config
 from dvmvs.dataset_loader import PreprocessImage
@@ -103,8 +104,6 @@ class MonocularDepthEstimator:
         self.__previous_depth = None
         self.__previous_pose = None
 
-        self.__output_intrinsics: Optional[np.ndarray] = None
-
     # PUBLIC STATIC METHODS
 
     @staticmethod
@@ -159,8 +158,7 @@ class MonocularDepthEstimator:
     # PUBLIC METHODS
 
     # noinspection PyPep8Naming
-    def estimate_depth(self, colour_image: np.ndarray, tracker_w_t_c: np.ndarray) \
-            -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def estimate_depth(self, colour_image: np.ndarray, tracker_w_t_c: np.ndarray) -> Optional[np.ndarray]:
         with torch.no_grad():
             reference_pose = tracker_w_t_c.copy()
             reference_image = colour_image.copy().astype(np.float32)
@@ -169,12 +167,12 @@ class MonocularDepthEstimator:
             # POLL THE KEYFRAME BUFFER
             response = self.__keyframe_buffer.try_new_keyframe(reference_pose, reference_image)
             if response == 0 or response == 2 or response == 4 or response == 5:
-                return None, None
+                return None
             elif response == 3:
                 self.__previous_depth = None
                 self.__previous_pose = None
                 self.__lstm_state = None
-                return None, None
+                return None
 
             preprocessor = PreprocessImage(
                 K=self.__K,
@@ -203,9 +201,9 @@ class MonocularDepthEstimator:
             ).float().to(self.__device).unsqueeze(0)
             reference_pose_torch = torch.from_numpy(reference_pose).float().to(self.__device).unsqueeze(0)
 
-            self.__output_intrinsics = preprocessor.get_updated_intrinsics()
-
-            full_K_torch = torch.from_numpy(self.__output_intrinsics).float().to(self.__device).unsqueeze(0)
+            full_K_torch = torch.from_numpy(
+                preprocessor.get_updated_intrinsics()
+            ).float().to(self.__device).unsqueeze(0)
 
             half_K_torch = full_K_torch.clone().cuda()
             half_K_torch[:, 0:2, :] = half_K_torch[:, 0:2, :] / 2.0
@@ -317,18 +315,14 @@ class MonocularDepthEstimator:
                     depth_multiplier_for_visualization=5000
                 )
 
-            reference_image = reference_image * np.array(self.__std_rgb) + np.array(self.__mean_rgb)
-            reference_image = (reference_image * self.__scale_rgb).astype(np.uint8)
-            reference_image = cv2.cvtColor(reference_image, cv2.COLOR_RGB2BGR)
+            height, width = colour_image.shape[:2]
+            depth_image: np.ndarray = cv2.resize(prediction, (width, height), interpolation=cv2.INTER_NEAREST)
 
-            return prediction, reference_image
+            return depth_image
 
-    def get_output_intrinsics(self) -> Optional[np.ndarray]:
-        return self.__output_intrinsics
-
-    def set_input_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
+    def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
         """
-        Set the camera intrinsics associated with the input images.
+        Set the camera intrinsics.
 
         :param intrinsics:  The 3x3 camera intrinsics matrix.
         :return:            The current object.
