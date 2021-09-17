@@ -298,8 +298,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         :return:            The post-processed depth image, if possible, or None otherwise.
         """
         return DepthImageProcessor.postprocess_depth_image(
-            depth_image, max_depth=5.0, max_depth_difference=0.05, median_filter_radius=7,
-            min_region_size=20000, min_valid_fraction=0.2
+            depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=7,
+            min_region_size=5000, min_valid_fraction=0.2
         )
 
     def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
