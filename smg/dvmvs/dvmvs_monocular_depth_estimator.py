@@ -18,7 +18,7 @@ from dvmvs.utils import get_non_differentiable_rectangle_depth_estimation
 from dvmvs.utils import get_warp_grid_for_cost_volume_calculation
 from dvmvs.utils import visualize_predictions
 
-from smg.utility import DepthImageProcessor, ImageUtil, MonocularDepthEstimator
+from smg.utility import DepthImageProcessor, GeometryUtil, ImageUtil, MonocularDepthEstimator
 
 
 class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
@@ -111,6 +111,13 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         self.__lstm_state: Optional[Tuple[torch.Tensor, torch.Tensor]] = None
         self.__previous_depth: Optional[torch.Tensor] = None
         self.__previous_pose: Optional[torch.Tensor] = None
+
+        # BEGIN SMG
+        self.__current_depth_image: Optional[np.ndarray] = None
+        self.__current_w_t_c: Optional[np.ndarray] = None
+        self.__previous_depth_image: Optional[np.ndarray] = None
+        self.__previous_w_t_c: Optional[np.ndarray] = None
+        # END SMG
 
     # PUBLIC METHODS
 
@@ -284,6 +291,11 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             # Fill the border of the depth image with zeros (depths around the image border are often quite noisy).
             estimated_depth_image = ImageUtil.fill_border(estimated_depth_image, self.__border_to_fill, 0.0)
 
+            # TODO
+            self.__previous_depth_image = self.__current_depth_image
+            self.__previous_w_t_c = self.__current_w_t_c
+            self.__current_w_t_c = tracker_w_t_c.copy()
+
             return estimated_depth_image
 
     # noinspection PyMethodMayBeStatic
@@ -297,10 +309,23 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         :param depth_image: The input depth image.
         :return:            The post-processed depth image, if possible, or None otherwise.
         """
-        return DepthImageProcessor.postprocess_depth_image(
+        depth_image = DepthImageProcessor.postprocess_depth_image(
             depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=7,
             min_region_size=5000, min_valid_fraction=0.2
         )
+        self.__current_depth_image = depth_image.copy()
+
+        if self.__previous_depth_image is not None and self.__previous_w_t_c is not None:
+            depth_image = DepthImageProcessor.apply_temporal_filter(
+                depth_image, self.__current_w_t_c, self.__previous_depth_image, self.__previous_w_t_c,
+                GeometryUtil.intrinsics_to_tuple(self.__K), debug=True
+            )
+            return DepthImageProcessor.postprocess_depth_image(
+                depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=7,
+                min_region_size=5000, min_valid_fraction=0.2
+            )
+        else:
+            return None
 
     def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
         """
