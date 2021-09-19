@@ -1,1 +1,1 @@
-from .monocular_depth_estimator import MonocularDepthEstimator
+from .dvmvs_monocular_depth_estimator import DVMVSMonocularDepthEstimator
