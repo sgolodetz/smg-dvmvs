@@ -311,7 +311,7 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         :return:            The post-processed depth image, if possible, or None otherwise.
         """
         depth_image = DepthImageProcessor.postprocess_depth_image(
-            depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=7,
+            depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=5,
             min_region_size=5000, min_valid_fraction=0.2
         )
         if depth_image is None:
@@ -322,10 +322,10 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         if self.__previous_depth_image is not None and self.__previous_w_t_c is not None:
             depth_image = DepthImageProcessor.apply_temporal_filter(
                 depth_image, self.__current_w_t_c, self.__previous_depth_image, self.__previous_w_t_c,
-                GeometryUtil.intrinsics_to_tuple(self.__K), debug=True
+                GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, depth_diff_threshold=0.2
             )
             return DepthImageProcessor.postprocess_depth_image(
-                depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=7,
+                depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=5,
                 min_region_size=5000, min_valid_fraction=0.2
             )
         else:
