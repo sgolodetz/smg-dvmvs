@@ -294,6 +294,7 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             # TODO
             self.__previous_depth_image = self.__current_depth_image
             self.__previous_w_t_c = self.__current_w_t_c
+            self.__current_depth_image = estimated_depth_image.copy()
             self.__current_w_t_c = tracker_w_t_c.copy()
 
             return estimated_depth_image
@@ -313,6 +314,9 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=7,
             min_region_size=5000, min_valid_fraction=0.2
         )
+        if depth_image is None:
+            return None
+
         self.__current_depth_image = depth_image.copy()
 
         if self.__previous_depth_image is not None and self.__previous_w_t_c is not None:
