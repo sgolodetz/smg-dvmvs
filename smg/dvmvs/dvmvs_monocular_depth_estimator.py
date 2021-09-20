@@ -123,7 +123,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
     # PUBLIC METHODS
 
     # noinspection PyPep8Naming
-    def estimate_depth(self, colour_image: np.ndarray, tracker_w_t_c: np.ndarray) -> Optional[np.ndarray]:
+    def estimate_depth(self, colour_image: np.ndarray, tracker_w_t_c: np.ndarray, *, postprocess: bool = False) \
+            -> Optional[np.ndarray]:
         """
         Try to estimate a depth image corresponding to the colour image passed in.
 
@@ -133,6 +134,7 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
 
         :param colour_image:    The colour image.
         :param tracker_w_t_c:   The camera pose corresponding to the colour image (as a camera -> world transform).
+        :param postprocess:     Whether or not to apply any optional post-processing to the depth image.
         :return:                The estimated depth image, if possible, or None otherwise.
         """
         # Note: This code is essentially borrowed from the DeepVideoMVS code (with minor tweaks to make it work here).
@@ -301,8 +303,19 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
 
             return estimated_depth_image
 
-    # noinspection PyMethodMayBeStatic
-    def postprocess_depth_image(self, depth_image: np.ndarray) -> Optional[np.ndarray]:
+    def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
+        """
+        Set the camera intrinsics.
+
+        :param intrinsics:  The 3x3 camera intrinsics matrix.
+        :return:            The current object.
+        """
+        self.__K = intrinsics
+        return self
+
+    # PRIVATE METHODS
+
+    def __postprocess_depth_image(self, depth_image: np.ndarray) -> Optional[np.ndarray]:
         """
         Try to post-process the specified depth image to reduce the amount of noise it contains.
 
@@ -346,13 +359,3 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         # Otherwise, skip this depth image and wait till next time.
         else:
             return None
-
-    def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
-        """
-        Set the camera intrinsics.
-
-        :param intrinsics:  The 3x3 camera intrinsics matrix.
-        :return:            The current object.
-        """
-        self.__K = intrinsics
-        return self
