@@ -301,7 +301,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             self.__previous_w_t_c = self.__current_w_t_c
             self.__current_w_t_c = tracker_w_t_c.copy()
 
-            return estimated_depth_image
+            # Return the estimated depth image, post-processing it in the process if requested.
+            return self.__postprocess_depth_image(estimated_depth_image) if postprocess else estimated_depth_image
 
     def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
         """
