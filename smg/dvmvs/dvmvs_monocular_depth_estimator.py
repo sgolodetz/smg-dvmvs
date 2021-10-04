@@ -123,7 +123,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
     # PUBLIC METHODS
 
     # noinspection PyPep8Naming
-    def estimate_depth(self, colour_image: np.ndarray, tracker_w_t_c: np.ndarray) -> Optional[np.ndarray]:
+    def estimate_depth(self, colour_image: np.ndarray, tracker_w_t_c: np.ndarray, *, postprocess: bool = False) \
+            -> Optional[np.ndarray]:
         """
         Try to estimate a depth image corresponding to the colour image passed in.
 
@@ -133,6 +134,7 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
 
         :param colour_image:    The colour image.
         :param tracker_w_t_c:   The camera pose corresponding to the colour image (as a camera -> world transform).
+        :param postprocess:     Whether or not to apply any optional post-processing to the depth image.
         :return:                The estimated depth image, if possible, or None otherwise.
         """
         # Note: This code is essentially borrowed from the DeepVideoMVS code (with minor tweaks to make it work here).
@@ -287,30 +289,36 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
 
             # Make a resized version of the predicted depth image that is the same size as the original input image.
             height, width = colour_image.shape[:2]
-            estimated_depth_image: np.ndarray = cv2.resize(prediction, (width, height), interpolation=cv2.INTER_NEAREST)
+            depth_image: np.ndarray = cv2.resize(prediction, (width, height), interpolation=cv2.INTER_NEAREST)
 
             # Fill the border of the depth image with zeros (depths around the image border are often quite noisy).
-            estimated_depth_image = ImageUtil.fill_border(estimated_depth_image, self.__border_to_fill, 0.0)
+            depth_image = ImageUtil.fill_border(depth_image, self.__border_to_fill, 0.0)
 
-            # Update all but one of the variables needed to perform my own temporal filtering of the depth images.
-            # The remaining variable (the current depth image) gets updated during post-processing, since we want
-            # to set the current depth image to a partially post-processed copy of the raw estimated depth image.
-            self.__previous_depth_image = self.__current_depth_image
-            self.__previous_w_t_c = self.__current_w_t_c
-            self.__current_w_t_c = tracker_w_t_c.copy()
+            # Return the estimated depth image, post-processing it in the process if requested.
+            return self.__postprocess_depth_image(depth_image, tracker_w_t_c) if postprocess else depth_image
 
-            return estimated_depth_image
+    def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
+        """
+        Set the camera intrinsics.
 
-    # noinspection PyMethodMayBeStatic
-    def postprocess_depth_image(self, depth_image: np.ndarray) -> Optional[np.ndarray]:
+        :param intrinsics:  The 3x3 camera intrinsics matrix.
+        :return:            The current object.
+        """
+        self.__K = intrinsics
+        return self
+
+    # PRIVATE METHODS
+
+    def __postprocess_depth_image(self, depth_image: np.ndarray, tracker_w_t_c: np.ndarray) -> Optional[np.ndarray]:
         """
         Try to post-process the specified depth image to reduce the amount of noise it contains.
 
         .. note::
             This function will return None if the input depth image does not have depth values for enough pixels.
 
-        :param depth_image: The input depth image.
-        :return:            The post-processed depth image, if possible, or None otherwise.
+        :param depth_image:     The input depth image.
+        :param tracker_w_t_c:   The camera pose corresponding to the depth image (as a camera -> world transform).
+        :return:                The post-processed depth image, if possible, or None otherwise.
         """
         # Post-process the input depth image using the normal approach.
         postprocessed_depth_image: np.ndarray = DepthImageProcessor.postprocess_depth_image(
@@ -318,13 +326,15 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             min_region_size=5000, min_valid_fraction=0.2
         )
 
-        # If post-processing produced a valid depth image, set that as the current depth image.
-        if postprocessed_depth_image is not None:
-            self.__current_depth_image = postprocessed_depth_image.copy()
+        # Update the variables needed to perform temporal filtering.
+        self.__previous_depth_image = self.__current_depth_image
+        self.__previous_w_t_c = self.__current_w_t_c
+        self.__current_depth_image = postprocessed_depth_image.copy() \
+            if postprocessed_depth_image is not None else None
+        self.__current_w_t_c = tracker_w_t_c.copy()
 
-        # Otherwise, set the input depth image as the current depth image, and early out.
-        else:
-            self.__current_depth_image = depth_image.copy()
+        # If post-processing did not produce a valid depth image, early out.
+        if postprocessed_depth_image is None:
             return None
 
         # If a previous depth image is available with which to perform temporal filtering:
@@ -346,13 +356,3 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         # Otherwise, skip this depth image and wait till next time.
         else:
             return None
-
-    def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
-        """
-        Set the camera intrinsics.
-
-        :param intrinsics:  The 3x3 camera intrinsics matrix.
-        :return:            The current object.
-        """
-        self.__K = intrinsics
-        return self
