@@ -353,8 +353,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
 
             # Post-process the resulting depth image again using the normal approach, and then return it.
             return DepthImageProcessor.postprocess_depth_image(
-                postprocessed_depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=5,
-                min_region_size=5000, min_valid_fraction=0.2
+                postprocessed_depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.025,
+                median_filter_radius=5, min_region_size=5000, min_valid_fraction=0.2
             )
 
         # Otherwise, skip this depth image and wait till next time.
