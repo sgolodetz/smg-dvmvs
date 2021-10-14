@@ -32,7 +32,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
 
     # CONSTRUCTOR
 
-    def __init__(self, dvmvs_root: str = "C:/deep-video-mvs", *, border_to_fill: int = 40, debug: bool = False):
+    def __init__(self, dvmvs_root: str = "C:/deep-video-mvs", *, border_to_fill: int = 40,
+                 debug: bool = False, max_depth: float = 3.0):
         """
         Construct a DeepVideoMVS-based monocular depth estimator.
 
@@ -40,9 +41,12 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         :param border_to_fill:  The size of the border (in pixels) of the estimated depth image
                                 that is to be filled with zeros to help mitigate depth noise.
         :param debug:           Whether or not to enable debugging.
+        :param max_depth:       The maximum depth values to keep during post-processing (pixels with depth values
+                                greater than this will have their depths set to zero).
         """
         self.__border_to_fill: int = border_to_fill
         self.__debug: bool = debug
+        self.__max_postprocessing_depth: float = max_depth
 
         self.__device: torch.device = torch.device("cuda")
 
@@ -322,8 +326,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         """
         # Post-process the input depth image using the normal approach.
         postprocessed_depth_image: np.ndarray = DepthImageProcessor.postprocess_depth_image(
-            depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=5,
-            min_region_size=5000, min_valid_fraction=0.2
+            depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.025,
+            median_filter_radius=5, min_region_size=5000, min_valid_fraction=0.2
         )
 
         # Update the variables needed to perform temporal filtering.
@@ -349,8 +353,8 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
 
             # Post-process the resulting depth image again using the normal approach, and then return it.
             return DepthImageProcessor.postprocess_depth_image(
-                postprocessed_depth_image, max_depth=3.0, max_depth_difference=0.025, median_filter_radius=5,
-                min_region_size=5000, min_valid_fraction=0.2
+                postprocessed_depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.025,
+                median_filter_radius=5, min_region_size=5000, min_valid_fraction=0.2
             )
 
         # Otherwise, skip this depth image and wait till next time.
