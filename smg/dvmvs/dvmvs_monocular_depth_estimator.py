@@ -326,9 +326,11 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         """
         # Post-process the input depth image using the normal approach.
         postprocessed_depth_image: np.ndarray = DepthImageProcessor.postprocess_depth_image(
-            depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.025,
-            median_filter_radius=5, min_region_size=5000, min_valid_fraction=0.2
+            depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.05,
+            median_filter_radius=5, min_region_size=100, min_valid_fraction=0.0
         )
+
+        # postprocessed_depth_image = depth_image.copy()
 
         # Update the variables needed to perform temporal filtering.
         self.__previous_depth_image = self.__current_depth_image
@@ -348,13 +350,15 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             # sufficiently close to the current depth.
             postprocessed_depth_image = DepthImageProcessor.remove_temporal_inconsistencies(
                 self.__current_depth_image, self.__current_w_t_c, self.__previous_depth_image, self.__previous_w_t_c,
-                GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, depth_diff_threshold=0.2
+                GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, depth_diff_threshold=0.1
             )
+
+            return postprocessed_depth_image
 
             # Post-process the resulting depth image again using the normal approach, and then return it.
             return DepthImageProcessor.postprocess_depth_image(
-                postprocessed_depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.025,
-                median_filter_radius=5, min_region_size=5000, min_valid_fraction=0.2
+                postprocessed_depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.05,
+                median_filter_radius=5, min_region_size=100, min_valid_fraction=0.0
             )
 
         # Otherwise, skip this depth image and wait till next time.
