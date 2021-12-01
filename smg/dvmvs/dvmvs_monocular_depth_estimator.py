@@ -348,7 +348,7 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             # Remove any pixel in the current depth image that either does not have a corresponding
             # pixel in the previous depth image at all, or else does not have one with a depth that's
             # sufficiently close to the current depth.
-            postprocessed_depth_image = DepthImageProcessor.remove_temporal_inconsistencies(
+            postprocessed_depth_image = DepthImageProcessor.remove_temporal_inconsistencies_new(
                 self.__current_depth_image, self.__current_w_t_c, self.__previous_depth_image, self.__previous_w_t_c,
                 GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, depth_diff_threshold=0.1
             )
