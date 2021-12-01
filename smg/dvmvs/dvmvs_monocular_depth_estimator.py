@@ -350,7 +350,7 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             # sufficiently close to the current depth.
             postprocessed_depth_image = DepthImageProcessor.remove_temporal_inconsistencies_new(
                 self.__current_depth_image, self.__current_w_t_c, self.__previous_depth_image, self.__previous_w_t_c,
-                GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, depth_diff_threshold=0.1
+                GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, distance_threshold=0.1
             )
 
             return postprocessed_depth_image
