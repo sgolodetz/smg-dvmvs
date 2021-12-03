@@ -330,7 +330,7 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             median_filter_radius=5, min_region_size=100, min_valid_fraction=0.0
         )
 
-        # postprocessed_depth_image = depth_image.copy()
+        postprocessed_depth_image = depth_image.copy()
 
         # Update the variables needed to perform temporal filtering.
         self.__previous_depth_image = self.__current_depth_image
@@ -353,12 +353,12 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
                 GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, distance_threshold=0.1
             )
 
-            return postprocessed_depth_image
+            # return postprocessed_depth_image
 
             # Post-process the resulting depth image again using the normal approach, and then return it.
             return DepthImageProcessor.postprocess_depth_image(
                 postprocessed_depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.05,
-                median_filter_radius=5, min_region_size=100, min_valid_fraction=0.0
+                median_filter_radius=5, min_region_size=5000, min_valid_fraction=0.0
             )
 
         # Otherwise, skip this depth image and wait till next time.
