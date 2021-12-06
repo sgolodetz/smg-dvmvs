@@ -300,8 +300,12 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
             # Fill the border of the depth image with zeros (depths around the image border are often quite noisy).
             depth_image = ImageUtil.fill_border(depth_image, self.__border_to_fill, 0.0)
 
-            # Return the estimated depth image, post-processing it in the process if requested.
-            return self.__postprocess_depth_image(depth_image, tracker_w_t_c) if postprocess else depth_image
+            # Return the estimated depth image, fully post-processing it in the process if requested,
+            # or just limiting the maximum depth as requested otherwise.
+            if postprocess:
+                return self.__postprocess_depth_image(depth_image, tracker_w_t_c)
+            else:
+                return np.where(depth_image <= self.__max_postprocessing_depth, depth_image, 0.0)
 
     def set_intrinsics(self, intrinsics: np.ndarray) -> MonocularDepthEstimator:
         """
