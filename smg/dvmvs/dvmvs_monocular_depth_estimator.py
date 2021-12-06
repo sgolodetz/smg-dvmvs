@@ -121,8 +121,10 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         # used for a different purpose, and it's important not to get the two confused.
         self.__current_depth_image: Optional[np.ndarray] = None
         self.__current_w_t_c: Optional[np.ndarray] = None
+        self.__current_world_points: Optional[np.ndarray] = None
         self.__previous_depth_image: Optional[np.ndarray] = None
         self.__previous_w_t_c: Optional[np.ndarray] = None
+        self.__previous_world_points: Optional[np.ndarray] = None
 
     # PUBLIC METHODS
 
@@ -324,38 +326,31 @@ class DVMVSMonocularDepthEstimator(MonocularDepthEstimator):
         :param tracker_w_t_c:   The camera pose corresponding to the depth image (as a camera -> world transform).
         :return:                The post-processed depth image, if possible, or None otherwise.
         """
-        # Post-process the input depth image using the normal approach.
-        postprocessed_depth_image: np.ndarray = DepthImageProcessor.postprocess_depth_image(
-            depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.05,
-            median_filter_radius=5, min_region_size=100, min_valid_fraction=0.0
-        )
-
-        postprocessed_depth_image = depth_image.copy()
-
         # Update the variables needed to perform temporal filtering.
         self.__previous_depth_image = self.__current_depth_image
         self.__previous_w_t_c = self.__current_w_t_c
-        self.__current_depth_image = postprocessed_depth_image.copy() \
-            if postprocessed_depth_image is not None else None
+        self.__previous_world_points = self.__current_world_points
+
+        self.__current_depth_image = depth_image.copy()
         self.__current_w_t_c = tracker_w_t_c.copy()
 
-        # If post-processing did not produce a valid depth image, early out.
-        if postprocessed_depth_image is None:
-            return None
+        intrinsics: Tuple[float, float, float, float] = GeometryUtil.intrinsics_to_tuple(self.__K)
+        self.__current_world_points = GeometryUtil.compute_world_points_image_fast(
+            depth_image, tracker_w_t_c, intrinsics
+        )
 
         # If a previous depth image is available with which to perform temporal filtering:
         if self.__previous_depth_image is not None:
-            # Remove any pixel in the current depth image that either does not have a corresponding
-            # pixel in the previous depth image at all, or else does not have one with a depth that's
-            # sufficiently close to the current depth.
+            # Remove any pixel in the current depth image that either does not have a corresponding pixel
+            # in the previous world-space points image at all, or else does not have one whose world-space
+            # point is sufficiently close to the current world-space point.
             postprocessed_depth_image = DepthImageProcessor.remove_temporal_inconsistencies(
-                self.__current_depth_image, self.__current_w_t_c, self.__previous_depth_image, self.__previous_w_t_c,
-                GeometryUtil.intrinsics_to_tuple(self.__K), debug=False, distance_threshold=0.1
+                self.__current_depth_image, self.__current_w_t_c, self.__current_world_points,
+                self.__previous_depth_image, self.__previous_w_t_c, self.__previous_world_points,
+                intrinsics, debug=False, distance_threshold=0.1
             )
 
-            # return postprocessed_depth_image
-
-            # Post-process the resulting depth image again using the normal approach, and then return it.
+            # Further post-process the resulting depth image using the normal approach, and then return it.
             return DepthImageProcessor.postprocess_depth_image(
                 postprocessed_depth_image, max_depth=self.__max_postprocessing_depth, max_depth_difference=0.05,
                 median_filter_radius=5, min_region_size=5000, min_valid_fraction=0.0
