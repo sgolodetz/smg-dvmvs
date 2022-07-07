@@ -10,7 +10,7 @@ Note: Please read the [top-level README](https://github.com/sgolodetz/smglib/blo
 
 1. Open the terminal.
 
-2. Activate the Conda environment, e.g. ```conda activate smglib```.
+2. Activate the Conda environment, e.g. `conda activate smglib`.
 
 3. If you haven't already installed PyTorch, install it now. In our case, we did this via:
 
