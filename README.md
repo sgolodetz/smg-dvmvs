@@ -38,7 +38,7 @@ Note: Please read the [top-level README](https://github.com/sgolodetz/smglib/blo
 
    v. If you're using a Visual Studio Command Prompt, run ```set DISTUTILS_USE_SDK=1``` to prevent multiple activations of the VC environment.
 
-   vi. Run `pip install -e .` to install `pytorch3d`.
+   vi. Run `pip install -e .` to install `pytorch3d`. If you get the error `ImportError: cannot import name '_nt_quote_args' from 'distutils.spawn'`, install `setuptools` version `59.6` or below. (See also [here](https://github.com/pytorch/pytorch/issues/70390).)
 
 5. Install `deep-video-mvs`.
 
