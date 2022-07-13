@@ -17,6 +17,12 @@ You are not permitted under this Licence to use this Software commercially. Use 
 (3)	use of the Software or any derivative of it for research with the final aim of developing non-software products for sale or license to a third party, or
 (4)	use of the Software to provide any service to an external organisation for which payment is received.
 
-If you are interested in using the Software commercially, please contact the Cyber-Physical Systems Group directly to negotiate a licence.
-
 Contact details are: niki.trigoni@cs.ox.ac.uk or andrew.markham@cs.ox.ac.uk.
+
+THIRD-PARTY CODE
+
+DeepVideoMVS is distributed under the MIT License. See:
+
+https://github.com/ardaduz/deep-video-mvs/blob/master/LICENSE
+
+We have not made any changes to this code.
